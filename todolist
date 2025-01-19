@@ -1,0 +1,179 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import json
+
+# File to store tasks
+DATA_FILE = "todo_list_no_alarm.json"
+
+
+# Load tasks from file
+def load_tasks():
+    try:
+        with open(DATA_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
+
+
+# Save tasks to file
+def save_tasks(tasks):
+    with open(DATA_FILE, "w") as file:
+        json.dump(tasks, file, indent=4)
+
+
+# Add a task
+def add_task():
+    title = task_title_entry.get().strip()
+    description = task_description_entry.get("1.0", tk.END).strip()
+    priority = priority_var.get()
+
+    if not title:
+        messagebox.showerror("Error", "Task title cannot be empty!")
+        return
+
+    tasks.append({"title": title, "description": description, "priority": priority, "status": "Pending"})
+    save_tasks(tasks)
+    refresh_task_list()
+    task_title_entry.delete(0, tk.END)
+    task_description_entry.delete("1.0", tk.END)
+
+
+# Delete selected task
+def delete_task():
+    selected_item = task_list.selection()
+    if not selected_item:
+        messagebox.showwarning("Warning", "Please select a task to delete!")
+        return
+
+    index = int(task_list.item(selected_item)["text"])
+    del tasks[index]
+    save_tasks(tasks)
+    refresh_task_list()
+
+
+# Mark selected task as complete
+def complete_task():
+    selected_item = task_list.selection()
+    if not selected_item:
+        messagebox.showwarning("Warning", "Please select a task to mark as complete!")
+        return
+
+    index = int(task_list.item(selected_item)["text"])
+    tasks[index]["status"] = "Complete"
+    save_tasks(tasks)
+    refresh_task_list()
+
+
+# View task details
+def view_task_details():
+    selected_item = task_list.selection()
+    if not selected_item:
+        messagebox.showwarning("Warning", "Please select a task to view details!")
+        return
+
+    index = int(task_list.item(selected_item)["text"])
+    task = tasks[index]
+    messagebox.showinfo("Task Details", f"Title: {task['title']}\n\nDescription: {task['description']}\n\nPriority: {task['priority']}\n\nStatus: {task['status']}")
+
+
+# Refresh the task list display
+def refresh_task_list():
+    for item in task_list.get_children():
+        task_list.delete(item)
+
+    for index, task in enumerate(tasks):
+        status_color = "green" if task["status"] == "Complete" else "red"
+        task_list.insert(
+            "",
+            "end",
+            text=index,
+            values=(task["title"], task["priority"], task["status"]),
+            tags=(status_color,),
+        )
+    task_list.tag_configure("green", foreground="green")
+    task_list.tag_configure("red", foreground="red")
+
+
+# Initialize data
+tasks = load_tasks()
+
+# Create the main window
+root = tk.Tk()
+root.title("To-Do List Application")
+root.geometry("900x600")
+root.configure(bg="#f0f8ff")
+
+# Title Label
+title_label = tk.Label(
+    root,
+    text="To-Do List Application",
+    font=("Arial", 24, "bold"),
+    fg="#003366",
+    bg="#f0f8ff",
+)
+title_label.pack(pady=10)
+
+# Input Frame
+input_frame = tk.Frame(root, bg="#f0f8ff")
+input_frame.pack(pady=10)
+
+# Task Title
+tk.Label(input_frame, text="Task Title:", font=("Arial", 14), bg="#f0f8ff").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+task_title_entry = tk.Entry(input_frame, width=40, font=("Arial", 14))
+task_title_entry.grid(row=0, column=1, padx=5, pady=5)
+
+# Task Description
+tk.Label(input_frame, text="Description:", font=("Arial", 14), bg="#f0f8ff").grid(row=1, column=0, padx=5, pady=5, sticky="nw")
+task_description_entry = tk.Text(input_frame, width=40, height=4, font=("Arial", 12))
+task_description_entry.grid(row=1, column=1, padx=5, pady=5)
+
+# Task Priority
+tk.Label(input_frame, text="Priority:", font=("Arial", 14), bg="#f0f8ff").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+priority_var = tk.StringVar(value="Medium")
+priority_menu = ttk.Combobox(input_frame, textvariable=priority_var, values=["High", "Medium", "Low"], font=("Arial", 14))
+priority_menu.grid(row=2, column=1, padx=5, pady=5)
+priority_menu.config(state="readonly")
+
+# Add Task Button
+add_task_button = tk.Button(input_frame, text="Add Task", command=add_task, font=("Arial", 14), bg="#003366", fg="white")
+add_task_button.grid(row=3, column=0, columnspan=2, pady=10)
+
+# Task List Frame
+task_list_frame = tk.Frame(root, bg="#f0f8ff")
+task_list_frame.pack(pady=10)
+
+# Task List
+task_list = ttk.Treeview(task_list_frame, columns=("Title", "Priority", "Status"), show="headings", height=12)
+task_list.heading("Title", text="Title")
+task_list.heading("Priority", text="Priority")
+task_list.heading("Status", text="Status")
+task_list.column("Title", width=300)
+task_list.column("Priority", width=100, anchor="center")
+task_list.column("Status", width=100, anchor="center")
+task_list.pack(side="left", padx=10)
+
+# Scrollbar
+scrollbar = ttk.Scrollbar(task_list_frame, orient="vertical", command=task_list.yview)
+scrollbar.pack(side="right", fill="y")
+task_list.config(yscrollcommand=scrollbar.set)
+
+# Buttons Frame
+buttons_frame = tk.Frame(root, bg="#f0f8ff")
+buttons_frame.pack(pady=10)
+
+# Action Buttons
+complete_button = tk.Button(buttons_frame, text="Mark as Complete", command=complete_task, font=("Arial", 14), bg="green", fg="white")
+complete_button.grid(row=0, column=0, padx=10)
+
+delete_button = tk.Button(buttons_frame, text="Delete Task", command=delete_task, font=("Arial", 14), bg="red", fg="white")
+delete_button.grid(row=0, column=1, padx=10)
+
+view_button = tk.Button(buttons_frame, text="View Details", command=view_task_details, font=("Arial", 14), bg="orange", fg="white")
+view_button.grid(row=0, column=2, padx=10)
+
+# Initial Display
+refresh_task_list()
+
+# Start the GUI event loop
+root.mainloop()
+
